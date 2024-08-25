@@ -1,0 +1,80 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/index" style="padding-top: 0px">
+            <img class="me-3 pb-1" src="./images/logo.png" alt="avatar" style="height: 40px;">
+            <span><b>CMC qTest</b></span>
+        </a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <AuthorizeView Roles="admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="index" Match="NavLinkMatch.All">
+                        <span class="oi oi-home" aria-hidden="true"></span> <b>Home</b>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="exam">
+                        <span class="oi oi-plus" aria-hidden="true"></span> <b>Exam Management</b>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="subjects">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> <b>Subject Question</b>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="user">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> <b>User Management</b>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="room">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> <b>Room Management</b>
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="candidate">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="takeexam">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Take Exam
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+
+        <AuthorizeView Roles="supervisor,admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link text-white" href="supervisor">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> <b>Exam Supervisor</b>
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
+

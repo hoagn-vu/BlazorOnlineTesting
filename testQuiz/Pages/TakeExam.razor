@@ -1,0 +1,223 @@
+﻿@page "/takeexam"
+@attribute [Authorize(Roles = "candidate")]
+@layout CandidateLayout
+
+@inject NavigationManager Navigation
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+
+@code {
+    //public string candidateId = "66c01b9cfb046bfcbbb0017f";
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+    private AuthenticationState authState;
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+
+    public User candidate = new User();
+    public List<ObjectId> examIds = new List<ObjectId>();
+    bool IsPreTakeExam = false;
+    private ObjectId selectedExamId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        authState = await authenticationState;
+        ObjectId candidateId = userService.GetUserByUsername(authState.User.Identity.Name).Id;
+        candidate = userService.GetUserById(candidateId);
+        //examIds = await examService.GetExamIdsFromCandidateId(objId);
+        examIds = await examService.GetExamNotDoneFromCandidateId(candidateId);
+
+    }
+
+    //private async Task Start(ObjectId eId, ObjectId cId)
+    //{
+    //    await examService.StartExamAsync(eId, cId);
+    //}
+
+    private async Task Start(ObjectId eId, ObjectId cId)
+    {
+        await examService.StartExamAsync(eId, cId);
+        Navigation.NavigateTo($"/take/{eId}");
+    }
+
+    private void ConfirmExam(ObjectId examId)
+    {
+        selectedExamId = examId;
+        IsPreTakeExam = true;
+    }
+
+    private void Cancel()
+    {
+        IsPreTakeExam = false;
+    }
+
+}
+
+@if (!IsPreTakeExam)
+{
+    <h1>Take Exam</h1>
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Candidate Information -->
+            <div class="col-md-5">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="card-title">Candidate</h3>
+                        <!-- Rectangle Image Frame -->
+                        <div class="mb-3" style="width: 150px; height: 200px; background-color: #f0f0f0;">
+                            <img src="./images/user.jpg" alt="Candidate Photo" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+
+                        <p class="card-text"><strong>Name:</strong> @candidate.FullName</p>
+                        <p class="card-text"><strong>Id:</strong> @candidate.Username</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exam List -->
+            <div class="col-md-7">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="card-title">Exams</h3>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var examId in examIds)
+                            {
+                                <li class="list-group-item">
+                                    <a @onclick="() => ConfirmExam(examId)" href="javascript:void(0);" class="text-decoration-none fs-5">
+                                        <i class="far fa-file-alt"></i> @examService.GetExamById(examId).ExamName
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+<div class=" d-flex justify-content-center">
+    <div class="card w-75 text-center">
+        <div class="card-header">
+            Thông báo
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">Xác nhận làm bài thi</h5>
+            <p class="card-text">Bạn chuẩn bị thực hiện bài thi: @examService.GetExamById(selectedExamId).ExamName</p>
+            <p class="card-text">Trình duyệt sẽ vào chế độ toàn màn hình</p>
+            <p class="card-text">Không được thoát ra ngoài khi đang thực hiện bài thi</p>
+
+            <a @onclick="() => Start(selectedExamId, candidate.Id)" href="javascript:void(0);" class="btn btn-primary">
+                Bắt đầu
+            </a>
+            <a @onclick="Cancel" href="javascript:void(0);" class="btn btn-secondary">
+                Quay lại
+            </a>
+        </div>
+    </div>
+</div>
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--if (!IsPreTakeExam)
+{
+    <h1>Take Exam</h1>
+    <div class="container mt-4">
+        <div class="row">-->
+<!-- Candidate Information -->
+<!--<div class="col-md-5">
+    <div class="card shadow-sm h-100">
+        <div class="card-body d-flex flex-column align-items-center">
+            <h3 class="card-title">Candidate</h3>-->
+<!-- Rectangle Image Frame -->
+<!--<div class="mb-3" style="width: 150px; height: 200px; background-color: #f0f0f0;">
+                <img src="./images/user.jpg" alt="Candidate Photo" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+
+            <p class="card-text"><strong>Name:</strong> @candidate.FullName</p>
+            <p class="card-text"><strong>Id:</strong> @candidate.Username</p>
+        </div>
+    </div>
+</div>-->
+<!-- Exam List -->
+<!--<div class="col-md-7">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="card-title">Exams</h3>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var examId in examIds)
+                            {
+                                <li class="list-group-item">
+                                    <a @onclick="() => Start(examId, candidate.Id)" href=@($"/take/{examId}") class="text-decoration-none fs-5">
+                                        <i class="far fa-file-alt"></i> @examService.GetExamById(examId).ExamName
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card text-center">
+        <div class="card-header">
+            Thông báo
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">Special title treatment</h5>
+            <p class="card-text">Bạn chuẩn bị thực hiện bài thi: @examService.GetExamById(examId)</p>
+            <a @onclick="() => Start(examId, candidate.Id)" href=@($"/take/{examId}") class="text-decoration-none fs-5">
+                Bắt đầu làm
+            </a>
+        </div>
+        <div class="card-footer text-body-secondary">
+            2 days ago
+        </div>
+    </div>
+}-->
+@*<div class="row ms-3">
+        <div class="col-md-5">
+            <h3>Candidate</h3>
+            <h5>Id: @candidate.Username</h5>
+            <h5>Name: @candidate.FullName</h5>
+        </div>
+
+        <div class="col-md-7">
+            <h3>Exam</h3>
+
+            @foreach (var examId in examIds)
+            {
+                <div class="ms-3 mb-1 mt-3 fs-5">
+                    <a @onclick="() => Start(examId, candidate.Id)" href=@($"/take/{examId}")><i class="far fa-file-alt"></i>  @examService.GetExamById(examId).ExamName</a>
+                </div>
+            }
+        </div>
+    </div>*@

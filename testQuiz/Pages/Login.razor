@@ -1,0 +1,139 @@
+﻿@page "/"
+@layout LoginLayout
+
+@inject NavigationManager Navigation
+@using System.Text.Json
+@using testQuiz.Services
+@using testQuiz.Models
+@using MongoDB.Bson;
+@using testQuiz.Authentication
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+@inject AuthenticationStateProvider authStateProvider
+
+<PageTitle>Login</PageTitle>
+
+@*<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <div class="col-md-7 d-none d-md-block p-0">
+            <img src="office-2-1.jpg" class="w-100 h-100 img-fluid" alt="Image" style="object-fit: cover;">
+        </div>
+        <div class="col-md-5 d-flex align-items-center justify-content-center">
+            <div class="w-75">
+                <h3 class="mb-4 text-center">CMC qTest</h3>
+                <form>
+                    <div class="form-floating mb-3">
+                        <input @bind="model.Username" type="email" class="form-control" id="floatingInput" placeholder="name@example.com">
+                        <label for="floatingInput">Username</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input @bind="model.Password" type="password" class="form-control" id="floatingPassword" placeholder="Password">
+                        <label for="floatingPassword">Password</label>
+                    </div>
+                    <button @onclick="Authenticate" type="submit" class="btn btn-primary w-75">Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>*@
+
+
+<div class="row">
+    <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
+        <div class="mb-3 text-center">
+            <h3>LOGIN</h3>
+        </div>
+        <div class="mb-3">
+            <label>Username</label>
+            <input @bind="model.Username" class="form-control" placeholder="Username" required />
+        </div>
+        <div class="mb-3">
+            <label>Password</label>
+            <input @bind="model.Password" type="password" class="form-control" placeholder="Password" required />
+        </div>
+        <div class="mb-3 d-grid gap-2">
+            <button @onclick="Authenticate" class="btn btn-primary">Login</button>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    private class Model
+    {
+        public string Username { get; set; }
+        public string Password { get; set; }
+    }
+
+    private Model model = new Model();
+
+    private async Task Authenticate()
+    {
+        if (string.IsNullOrEmpty(model.Username))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập tên tài khoản");
+            return;
+        }
+        if (string.IsNullOrEmpty(model.Password))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập mật khẩu");
+            return;
+        }
+        if (model.Username.Length < 2)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Tên tài khoản ít nhất 6 ký tự");
+            return;
+        }
+
+        if (model.Password.Length < 2)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Mật khẩu ít nhất 6 ký tự");
+            return;
+        }
+
+
+        var userAccount = userService.GetUserByUsername(model.Username);
+        if (userAccount == null)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Tên tài khoản không tồn tại");
+            return;
+        }
+        if (!userService.VerifyPassword(userAccount, model.Password))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Mật khẩu không chính xác");
+            return;
+        }
+
+        var customAuthStateProvider = (CustomAuthenticationStateProvider)authStateProvider;
+        await customAuthStateProvider.UpdateAuthenticationState(new UserSession
+        {
+            Username = userAccount.Username,
+            Role = userAccount.Role
+        });
+
+        //Navigation.NavigateTo("/index", true);
+        if (userAccount.Role == "admin")
+        {
+            Navigation.NavigateTo("/index", true);
+        }
+        else if (userAccount.Role == "supervidor")
+        {
+            Navigation.NavigateTo("/index", true);
+        }
+        else if (userAccount.Role == "candidate")
+        {
+            Navigation.NavigateTo("/takeexam", true);
+        }
+        else
+        {
+            Navigation.NavigateTo("/", true);
+        }
+    }
+
+
+}
+

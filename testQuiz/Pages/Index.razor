@@ -1,0 +1,282 @@
+﻿@page "/index"
+@attribute [Authorize(Roles = "supervisor,admin")]
+@layout MainLayout
+
+@inject NavigationManager Navigation
+@using System.Text.Json
+@using testQuiz.Services
+@using testQuiz.Models
+@using MongoDB.Bson;
+@using testQuiz.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+@inject AuthenticationStateProvider authStateProvider
+
+<PageTitle>Index</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <h1>Hello, @context.User.Identity.Name !</h1>
+        @*<h1>Role: @authenticationState.Result.User.FindFirst(ClaimTypes.Role)?.Value</h1>*@
+    </Authorized>
+    <NotAuthorized>
+        <h1>Hello, Guest!</h1>
+    </NotAuthorized>
+</AuthorizeView>
+
+<AuthorizeView>
+    <Authorized>
+        <br /><br />
+
+        <button class="btn btn-primary" @onclick="DisplayGreetingAlert">
+            Display Greeting Alert
+        </button>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    private async Task DisplayGreetingAlert()
+    {
+        var authState = await authenticationState;
+        var message = $"Hello {authState.User.Identity.Name}";
+        await JSRuntime.InvokeVoidAsync("alert", message);
+
+    }
+
+}
+<h1>==================================</h1>
+<div class="countdown-timer">
+    <h2>Countdown Timer</h2>
+    @if (minutes < 10)
+    {
+        if (seconds >= 0 && seconds < 10)
+        {
+            <h1>0@(minutes):0@(seconds)</h1>
+        }
+        else
+        {
+            <h1>0@(minutes):@(seconds)</h1>
+        }
+    }
+    else
+    {
+        if (seconds >= 0 && seconds < 10)
+        {
+            <h1>@(minutes):0@(seconds)</h1>
+        }
+        else
+        {
+            <h1>@(minutes):@(seconds)</h1>
+        }
+    }
+
+</div>
+
+@code {
+    private int totalMinutes = 2; // 5 minutes
+    private int minutes;
+    private int seconds;
+    private System.Timers.Timer timer;
+
+    protected override void OnInitialized()
+    {
+        minutes = totalMinutes;
+        seconds = 0;
+        timer = new System.Timers.Timer(1000); // Update every 1 second
+        timer.Elapsed += Timer_Elapsed;
+        timer.Start();
+    }
+
+    private async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        seconds--;
+        if (seconds < 0)
+        {
+            seconds = 59;
+            minutes--;
+        }
+        if (minutes == 0 && seconds == 0)
+        {
+            timer.Stop();
+            await tsu();
+        }
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+        });
+    }
+
+    private async Task tsu()
+    {
+        Console.WriteLine("Time's up!");
+    }
+
+    public void Dispose()
+    {
+        timer.Dispose();
+    }
+}
+
+
+<h1>==================================</h1>
+<h3>Quiz</h3>
+<input type="number" @bind="questionCount" placeholder="Enter number of questions" />
+<button @onclick="StartQuiz">Làm bài thi</button>
+
+@code {
+    private int questionCount;
+
+    private void StartQuiz()
+    {
+        Navigation.NavigateTo($"/quiz/{questionCount}");
+    }
+}
+
+<h1>==================================</h1>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Column 1</th>
+            <th>Column 2</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in items)
+        {
+            <tr>
+                <td>@item.Column1</td>
+                <td>@item.Column2</td>
+                <td>
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#myModal">Open Form</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">Input Form</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="inputData">Input Data:</label>
+                    <input type="text" class="form-control" id="inputData" @bind="inputData" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" @onclick="SubmitForm">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+    private string inputData;
+
+    // Danh sách các mục trong bảng (có thể lấy từ database)
+    private List<Item> items = new List<Item>
+{
+        new Item { Column1 = "Item 1", Column2 = "Detail 1" },
+        new Item { Column1 = "Item 2", Column2 = "Detail 2" },
+        // Thêm các mục khác nếu cần
+    };
+
+    // Xử lý khi nhấn submit trong modal
+    private void SubmitForm()
+    {
+        // Thực hiện logic khi submit form, ví dụ: lưu dữ liệu vào database
+        Console.WriteLine($"Input Data: {inputData}");
+    }
+
+    // Mô hình đơn giản cho các hàng trong bảng
+    public class Item
+    {
+        public string Column1 { get; set; }
+        public string Column2 { get; set; }
+    }
+}
+
+
+<h1>==================================</h1>
+<HeadContent>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+</HeadContent>
+
+@using System.Collections.Generic
+
+<div class="card w-75 ms-5">
+    <h5 class="card-header">Question</h5>
+    <div class="card-body">
+        <div class="form-floating mb-2">
+            <input type="text" class="form-control" id="questionInput" placeholder="Question" @bind="QuestionTitle" />
+            <label for="questionInput">Question Title</label>
+        </div>
+
+        @foreach (var option in Options)
+        {
+            <div class="input-group mb-2">
+                <div class="input-group-text">
+                    <input class="form-check-input mt-0 @(option.IsValid ? "is-valid border-none" : "")" type="checkbox" value="" @bind="option.IsValid" />
+                </div>
+                <input type="text" class="form-control @(option.IsValid ? "is-valid" : "")" placeholder="Option" @bind="option.Text" />
+                <a class="text-secondary d-flex align-items-center text-decoration-none" @onclick="() => RemoveOption(option)">
+                    <i class="fa fa-times ms-3 me-2"></i>
+                </a>
+            </div>
+        }
+
+        <div class="input-group mb-2">
+            <a class="text-secondary d-flex align-items-center text-decoration-none" @onclick="AddOption">
+                <i class="fa fa-plus ms-1 me-2"></i>Add more options
+            </a>
+        </div>
+        <div class="input-group mb-2 justify-content-center">
+            <a class="btn btn-primary">Save Question</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string QuestionTitle = "1 + 1 = ?";
+    private List<QuestionOption> Options = new List<QuestionOption>
+{
+        new QuestionOption { Text = "1", IsValid = false },
+        new QuestionOption { Text = "2", IsValid = true },
+        new QuestionOption { Text = "3", IsValid = false },
+        new QuestionOption { Text = "4", IsValid = false }
+    };
+
+    private void ToggleOptionValidity(QuestionOption option)
+    {
+        option.IsValid = !option.IsValid;
+    }
+
+    private void RemoveOption(QuestionOption option)
+    {
+        Options.Remove(option);
+    }
+
+    private void AddOption()
+    {
+        Options.Add(new QuestionOption { Text = "", IsValid = false });
+    }
+
+    public class QuestionOption
+    {
+        public string Text { get; set; }
+        public bool IsValid { get; set; }
+    }
+}

@@ -1,0 +1,236 @@
+﻿@page "/createexam"
+@attribute [Authorize(Roles = "admin")]
+@layout MainLayout
+
+@inject NavigationManager Navigation
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+
+@code {
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    private Exam exam = new Exam();
+    private Subject subject = new Subject();
+    private List<Exam> Exams = new List<Exam>();
+    private List<Subject> listSubjects = new List<Subject>();
+    //private Exam editExam = new Exam();
+    //private Exam newExam = new Exam { Rooms = new List<Room>() };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Exams = examService.GetAllExams();
+        listSubjects = subjectService.GetSubjects();
+
+    }
+
+    private void Save()
+    {
+        examService.SaveOrUpdate(exam);
+        Reset();
+        Exams = examService.GetAllExams(); // Refresh the list after saving
+    }
+
+    private void Reset()
+    {
+        exam = new Exam(); // Reset form
+    }
+
+    private void Edit(ObjectId examId)
+    {
+        exam = examService.GetExamById(examId);
+    }
+
+    private void Delete(ObjectId examId)
+    {
+        examService.Delete(examId);
+        Exams = examService.GetAllExams(); // Refresh the list after deletion
+    }
+}
+
+<h1 class="mb-4">Create Exam</h1>
+<div class="row">
+    <div class="col-md-4">
+        <!-- Exam Name -->
+        <div class="mb-3">
+            <label for="examName" class="form-label">Exam Name:</label>
+            <input type="text" class="form-control" id="examName" @bind="exam.ExamName" placeholder="Enter Exam Name">
+        </div>
+
+        <!-- Subject -->
+        <div class="mb-3">
+            <label for="subject" class="form-label">Subject:</label>
+            <select class="form-select" id="subject" @bind="exam.SubjectIdString">
+                <option selected disabled>Choose Subject</option>
+                @foreach (var subj in listSubjects)
+                {
+                    <option value="@subj.Id.ToString()">@subj.SubjectName</option>
+                }
+            </select>
+        </div>
+
+        <!-- Number of Questions -->
+        <div class="mb-3">
+            <label for="numberOfQuestions" class="form-label">Number of Questions:</label>
+            <input type="number" class="form-control" id="numberOfQuestions" @bind="exam.NumberOfQuestions" placeholder="Enter Number of Questions">
+        </div>
+
+        <!-- Max Score -->
+        <div class="mb-3">
+            <label for="maxScore" class="form-label">Max Score:</label>
+            <input type="number" class="form-control" id="maxScore" @bind="exam.MaxScore" placeholder="Enter Max Score">
+        </div>
+
+        <!-- Duration -->
+        <div class="mb-3">
+            <label for="duration" class="form-label">Duration (minutes):</label>
+            <input type="number" class="form-control" id="duration" @bind="exam.Duration" placeholder="Enter Duration in Minutes">
+        </div>
+
+        <!-- Buttons -->
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-primary" @onclick="Save">Save</button>
+            <button class="btn btn-danger" @onclick="Reset">Cancel</button>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Exams Table -->
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Exam Name</th>
+                    <th>Subject</th>
+                    <th>Num of Quest</th>
+                    <th>Max Score</th>
+                    <th>Duration (minutes)</th>
+                    <th>Sessions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Exams.Count > 0)
+                {
+                    @foreach (var ex in Exams)
+                    {
+                        <tr>
+                            <td>@ex.ExamName</td>
+                            <td>@subjectService.GetNameSubject(ex.SubjectId)</td>
+                            <td>@ex.NumberOfQuestions</td>
+                            <td>@ex.MaxScore</td>
+                            <td>@ex.Duration</td>
+                            <td><a href="@($"/{ex.Id}/sessions")">All Sessions</a></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm">Edit</button>
+                                <button class="btn btn-danger btn-sm">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+@*<h1>Create Exam</h1>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Name: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="exam.ExamName" style="width:100%" placeholder="Exam Name" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Subject: </label>
+                </div>
+                <div class="col-md-8">
+                    <select @bind="exam.SubjectIdString" style="width:100%">
+                        @foreach (var subj in listSubjects)
+                        {
+                            <option value="@subj.Id.ToString()">@subj.SubjectName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Number of Questions: </label>
+                </div>
+                <div class="col-md-8">
+                    <input type="number" @bind="exam.NumberOfQuestions" style="width:100%" placeholder="Number of Questions" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Max Score: </label>
+                </div>
+                <div class="col-md-8">
+                    <input type="number" @bind="exam.MaxScore" style="width:100%" placeholder="Max Score" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Duration (minutes): </label>
+                </div>
+                <div class="col-md-8">
+                    <input type="number" @bind="exam.Duration" style="width:100%" placeholder="Duration in minutes" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4"></div>
+                <div class="col-md-8">
+                    <button class="btn btn-primary" @onclick="Save">Save</button>
+                    <button class="btn btn-danger" @onclick="Reset" style="float:right;">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Exam Name</th>
+                        <th>Subject</th>
+                        <th>Num of Quest</th>
+                        <th>Max Score</th>
+                        <th>Duration (minutes)</th>
+                        <th>Sessions</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Exams.Count > 0)
+                    {
+                        @foreach (var ex in Exams)
+                        {
+                            <tr>
+                                <td>@ex.ExamName</td>
+                                <td>@subjectService.GetNameSubject(ex.SubjectId)</td>
+                                <td>@ex.NumberOfQuestions</td>
+                                <td>@ex.MaxScore</td>
+                                <td>@ex.Duration</td>
+                                <td><a href="@($"/{ex.Id}/sessions")">All Sessions</a></td>
+                                <td>
+                                    <button class="btn btn-primary">Edit</button>
+                                    <button class="btn btn-danger">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>*@

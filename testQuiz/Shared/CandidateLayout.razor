@@ -1,0 +1,80 @@
+﻿@inherits LayoutComponentBase
+@using testQuiz.Authentication
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider authStateProvider
+
+<PageTitle>testQuiz</PageTitle>
+
+<div class="page">
+    <main>
+
+        @*<header class="p-3 mb-3 border-bottom">
+            <div class="container">
+                <div class="d-flex flex-wrap align-items-center justify-content-between justify-content-lg-start">
+                    <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
+                        <img src="https://github.com/mdo.png" alt="mdo" width="32" height="32" class="rounded-circle me-2">
+                        <span class="fs-4">Simple header</span>
+                    </a>
+
+                    <div class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3">
+                        <b><a class="text-decoration-none" href="/history">Exam History</a></b>
+                    </div>
+
+                    <div class="dropdown text-end">
+                        <a href="#" class="d-block link-body-emphasis text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="https://github.com/mdo.png" alt="mdo" width="32" height="32" class="rounded-circle">
+                        </a>
+                        <ul class="dropdown-menu text-small">
+                            <li><a class="dropdown-item" href="#">New project...</a></li>
+                            <li><a class="dropdown-item" href="#">Settings</a></li>
+                            <li><a class="dropdown-item" href="#">Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#">Sign out</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </header>*@
+
+
+        <div class="p-2 d-flex justify-content-between border-bottom shadow mb-3" style="background: #55abde">
+            <div class="d-flex align-items-center" style="margin-left: 50px">
+                <a class="d-flex align-items-center text-decoration-none" href="/takeexam">
+                    <img class="me-3 pb-1" src="./images/logo.png" alt="avatar" style="height: 45px;">
+                    <span><b class="text-white">CMC qTest</b></span>
+                </a>
+            </div>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="d-flex justify-content-end align-items-center" style="margin-right: 50px">
+                        <b><a class="text-decoration-none text-white" href="/history">Exam History</a></b>
+
+                        <a class="nav-link dropdown-toggle ms-2" data-bs-toggle="dropdown">
+                            @*<i class="fas fa-user"></i>*@
+                            <img class="rounded-circle me-lg-2 border border-secondary" src="./images/user.jpg" alt="avatar" style="width: 45px; height: 45px;">
+                            <b><span class="d-none d-lg-inline-flex text-white">@context.User.Identity.Name</span></b>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a @onclick="Logout" href="/" class="dropdown-item text-dark logout-drop" style="margin-left: 0">Logout</a>
+                            </li>
+                        </ul>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code{
+    private async Task Logout()
+    {
+        var customAuthStateProvider = (CustomAuthenticationStateProvider)authStateProvider;
+        await customAuthStateProvider.UpdateAuthenticationState(null);
+        Navigation.NavigateTo("/", true);
+    }
+}

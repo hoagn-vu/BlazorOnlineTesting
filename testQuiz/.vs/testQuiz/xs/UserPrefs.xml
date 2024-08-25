@@ -1,0 +1,47 @@
+﻿<Properties StartupConfiguration="{4C1EC4B0-3652-4A5F-80A8-1B5E4C285F3A}|Default">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MultiItemStartupConfigurations />
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.ItemProperties.testQuiz PreferredExecutionTarget="/Applications/Google Chrome.app" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Pages/SubmitExam.razor">
+    <Files>
+      <File FileName="Pages/TestTracking.razor" Line="14" Column="56" />
+      <File FileName="Pages/TestTracking2.razor" Line="3" Column="1" />
+      <File FileName="Pages/TestSession.razor" Line="3" Column="1" />
+      <File FileName="Pages/SubmitExam.razor" Line="124" Column="2" />
+      <File FileName="wwwroot/site.js" Line="51" Column="4" />
+      <File FileName="Pages/_Host.cshtml" Line="9" Column="1" />
+      <File FileName="Pages/_Layout.cshtml" Line="35" Column="1" />
+    </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State name="__root__">
+          <Node name="testQuiz" expanded="True">
+            <Node name="testQuiz" expanded="True">
+              <Node name="Dependencies" expanded="True">
+                <Node name="PackageDependencies" expanded="True" />
+              </Node>
+              <Node name="Authentication" expanded="True" />
+              <Node name="Models" expanded="True" />
+              <Node name="Pages" expanded="True">
+                <Node name="SubmitExam.razor" selected="True" />
+              </Node>
+              <Node name="Services" expanded="True" />
+              <Node name="Shared" expanded="True">
+                <Node name="MainLayout.razor" expanded="True" />
+                <Node name="NavMenu.razor" expanded="True" />
+              </Node>
+              <Node name="wwwroot" expanded="True">
+                <Node name="css" expanded="True" />
+                <Node name="images" expanded="True" />
+              </Node>
+            </Node>
+          </Node>
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

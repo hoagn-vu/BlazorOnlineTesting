@@ -1,0 +1,114 @@
+﻿@page "/test/{candidateId}/take/{examId}"
+<PageTitle>Quiz</PageTitle>
+@layout MainLayout
+
+@inject NavigationManager Navigation
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+@inject IJSRuntime JSRuntime
+
+<h1>heheh</h1>
+@*<div class="container mt-5">
+        <h3 class="text-center mb-4">Quiz</h3>
+
+        @if (questions != null)
+        {
+            @foreach (var question in questions)
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">@question.QuestionText</h5>
+                        @foreach (var option in question.ShuffledOptions)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       id="@($"{question.Id}-{option.OptionText}")"
+                                       name="@question.Id"
+                                       @onclick="() => SelectOption(question.Id, option)" />
+                                <label class="form-check-label" for="@($"{question.Id}-{option.OptionText}")">
+                                    @option.OptionText
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            <div class="text-center">
+                <button class="btn btn-primary" @onclick="SubmitQuiz">Nộp bài</button>
+            </div>
+        }
+        else
+        {
+            <p class="text-center">Loading questions...</p>
+        }
+    </div>*@
+
+@code {
+    List<Question> questions; // Danh sách câu hỏi hiện tại
+    string examId;
+    string candidateId;
+    List<OptionChosen> selectedAnswers = new List<OptionChosen>(); // Lưu câu trả lời đã chọn
+
+
+
+    public Question question = new Question();
+    public User candidate = new User();
+    public List<ObjectId> examIds = new List<ObjectId>();
+    public Exam examTaking = new Exam();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Lấy examId và candidateId từ route
+        examId = Navigation.ToBaseRelativePath(Navigation.Uri).Split('/')[1];
+        candidateId = Navigation.ToBaseRelativePath(Navigation.Uri).Split('/')[3];
+
+        // Lấy dữ liệu câu hỏi từ ExamService hoặc bất cứ service nào bạn dùng
+        ObjectId exId = ObjectId.Parse(examId);
+        ObjectId caId = ObjectId.Parse(candidateId);
+        candidate = userService.GetUserById(caId);
+
+        examTaking = examService.GetExamById(exId);
+        questions = await questionService.GetRandomQuestions(examTaking.SubjectId, examTaking.NumberOfQuestions);
+
+        // In danh sách câu hỏi để kiểm tra
+        Console.WriteLine($"Số lượng câu hỏi: {questions.Count}");
+        foreach (var question in questions)
+        {
+            Console.WriteLine($"Câu hỏi: {question.QuestionText}");
+        }
+    }
+
+    void SelectOption(ObjectId questionId, OptionChosen option)
+    {
+        var answer = selectedAnswers.FirstOrDefault(a => a.QuestionId == questionId);
+        if (answer != null)
+        {
+            answer.OptionSelected = option.OptionSelected;
+            answer.IsCorrect = option.IsCorrect;
+        }
+        else
+        {
+            selectedAnswers.Add(new OptionChosen
+            {
+                QuestionId = questionId,
+                OptionSelected = option.OptionSelected,
+                IsCorrect = option.IsCorrect
+            });
+        }
+    }
+
+    //async Task SubmitQuiz()
+    //{
+    //    // Tính điểm tổng
+    //    int totalScore = (await examService.CalculateTotalScoreAsync(examId, selectedAnswers));
+
+    //    // Cập nhật kết quả bài thi vào MongoDB
+    //    await examService.UpdateCandidateAnswersAsync(examId, candidateId, selectedAnswers, totalScore);
+    //}
+}

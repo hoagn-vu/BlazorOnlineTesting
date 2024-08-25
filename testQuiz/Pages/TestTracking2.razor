@@ -1,0 +1,27 @@
+﻿@page "/page2"
+@attribute [Authorize(Roles = "candidate,admin")]
+@layout LoginLayout
+@inject IJSRuntime JSRuntime
+
+<h3>Trang 2</h3>
+<p>Số lần chuyển trang, thoát hoặc thu nhỏ trình duyệt: @eventCount</p>
+
+@code {
+    private int eventCount = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Đăng ký các sự kiện với JavaScript
+            await JSRuntime.InvokeVoidAsync("addEventListenersForPage2");
+        }
+    }
+
+    [JSInvokable]
+    public void IncrementEventCount()
+    {
+        eventCount++;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,690 @@
+﻿@page "/user"
+@attribute [Authorize(Roles = "admin")]
+@layout MainLayout
+
+@inject NavigationManager Navigation
+@using System.Text.Json
+@using testQuiz.Services
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.UserService userService
+@inject testQuiz.Services.ExamService examService
+
+@code {
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    private User user = new User();
+    private List<User> listCandidate = new List<User>();
+    private List<User> listSupervisor = new List<User>();
+    private List<User> listAdmin = new List<User>();
+    //private List<User> listLecturer = new List<User>();
+
+    int i = 0;
+    private List<Exam> examHistory = new List<Exam>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        listCandidate = userService.GetUsersByRole("candidate");
+        listSupervisor = userService.GetUsersByRole("supervisor");
+        listAdmin = userService.GetUsersByRole("admin");
+        //listLecturer = userService.GetUsersByRole("lecturer");
+
+        i = 0;
+
+    }
+
+    private async Task Save(string uRole)
+    {
+        user.Role = uRole;
+
+        if (string.IsNullOrEmpty(user.FullName))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "You have to enter fullname");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(user.Username))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "You have to enter username");
+            return;
+        }
+        if (user.Username.Length < 6)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Username must be at least 6 characters long");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(user.PasswordText))
+        {
+            // Nếu không nhập mật khẩu, giữ mật khẩu cũ
+            var existingUser = userService.GetUserById(user.Id);
+            user.PasswordHash = existingUser.PasswordHash; // Giữ nguyên hash của mật khẩu
+        }
+        else if (user.PasswordText.Length < 6)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Password must be at least 6 characters long");
+            return;
+        }
+        else
+        {
+            // Nếu có nhập mật khẩu, mã hóa mật khẩu mới
+            user.PasswordHash = userService.HashPw(user.PasswordText); // Giả sử bạn có hàm HashPassword
+        }
+
+        if (!(await userService.IsIdentityUsername(user.Username)))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Username already exists");
+            return;
+        }
+        else if (await userService.IsIdentityUsername(user.Username))
+        {
+            userService.SaveOrUpdate(user);
+            Reset();
+            await OnInitializedAsync(); // Refresh the list
+        }
+
+    }
+
+    private void Reset()
+    {
+        user = new User(); // Reset form
+    }
+
+    private void Edit(ObjectId userId)
+    {
+        user = userService.GetUserById(userId);
+    }
+
+    private async Task Delete(ObjectId userId)
+    {
+        userService.Delete(userId);
+        await OnInitializedAsync(); // Refresh the list
+    }
+
+    //private async Task Deactivate(ObjectId userId)
+    //{
+    //    userService.Deactive(userId);
+    //    await OnInitializedAsync(); // Refresh the list
+    //}
+
+    private async Task ChangeStatus(ObjectId userId, string status)
+    {
+        if (status == "active")
+        {
+            await userService.Deactive(userId); // Deactivate user
+        }
+        else if (status == "deactive")
+        {
+            await userService.Active(userId); // Activate user
+        }
+
+        await OnInitializedAsync(); // Refresh the list
+    }
+
+    private async Task GetExamHistory(ObjectId candidateId)
+    {
+        examHistory = await examService.GetExamHistory(candidateId);
+    }
+
+}
+
+<ul class="nav nav-tabs mb-4" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="pills-home-tab" data-bs-toggle="pill" data-bs-target="#pills-home" type="button" role="tab" aria-controls="pills-home" aria-selected="true">
+            Candidate
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pills-profile-tab" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button" role="tab" aria-controls="pills-profile" aria-selected="false">
+            Supervisor
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pills-contact-tab" data-bs-toggle="pill" data-bs-target="#pills-contact" type="button" role="tab" aria-controls="pills-contact" aria-selected="false">
+            Admin
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="pills-tabContent">
+    <!-- Candidate Tab -->
+    <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
+        <h4 class="mb-4">Candidate Information</h4>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label for="candidateName">Name:</label>
+                <input id="candidateName" @bind="user.FullName" class="form-control" placeholder="Full Name" />
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="candidateUsername">Username:</label>
+                <input id="candidateUsername" @bind="user.Username" class="form-control" placeholder="Username" />
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="candidatePassword">Password:</label>
+                <input id="candidatePassword" @bind="user.PasswordText" type="password" class="form-control" placeholder="Leave blank to keep existing password" />
+            </div>
+
+            <div class="col-md-3 align-items-center justify-content-between">
+                <button class="btn btn-info text-white">Search</button>
+                <button class="btn btn-primary ms-2" @onclick="@(() => Save("candidate"))">Save</button>
+                <button class="btn btn-danger ms-2" @onclick="Reset">Cancel</button>
+            </div>
+        </div>
+        <hr class="my-4" />
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Exam History</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (listCandidate.Count() > 0)
+                    {
+                        @foreach (var us in listCandidate)
+                        {
+                            <tr>
+                                <td>@us.FullName</td>
+                                <td>@us.Username</td>
+                                <td>
+                                    <a data-bs-toggle="modal" data-bs-target="#eHistoryModal" @onclick="() => GetExamHistory(us.Id)" href="javascript:void(0)">See details...</a>
+                                    <div class="modal fade" id="eHistoryModal" tabindex="-1" aria-labelledby="eHistoryModalLabel" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="eHistoryModalLabel">Candidate: @us.FullName - @us.Username</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <table class="table table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>#</th>
+                                                                <th>Exam Name</th>
+                                                                <th>Submitted Date</th>
+                                                                <th>Score</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var eHis in examHistory)
+                                                            {
+                                                                i++;
+                                                                <tr>
+                                                                    <td>@i</td>
+                                                                    <td>@eHis.ExamName</td>
+                                                                    <td>@eHis.Sessions[0].Candidates[0].FinishDatetime</td>
+                                                                    <td>@eHis.Sessions[0].Candidates[0].TotalScore</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@us.Status</td>
+                                <td>
+                                    <button class="btn btn-primary" @onclick="@(e => Edit(us.Id))">Edit</button>
+                                    <button class="btn btn-danger ms-2" @onclick="@(e => Delete(us.Id))">Delete</button>
+                                    <button class="btn btn-warning text-white ms-2" @onclick="@(e => ChangeStatus(us.Id, us.Status))">
+                                        @(us.Status == "active" ? "Deactivate" : "Activate")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Supervisor Tab -->
+    <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab" tabindex="0">
+        <h4 class="mb-4">Supervisor Information</h4>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="candidateName">Name:</label>
+                <input id="candidateName" @bind="user.FullName" class="form-control" placeholder="Full Name" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="candidateUsername">Username:</label>
+                <input id="candidateUsername" @bind="user.Username" class="form-control" placeholder="Username" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="candidatePassword">Password:</label>
+                <input id="candidatePassword" @bind="user.PasswordText" type="password" class="form-control" placeholder="Leave blank to keep existing password" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="text-center">
+                <button class="btn btn-info text-white">Search</button>
+                <button class="btn btn-primary ms-2" @onclick="@(() => Save("candidate"))">Save</button>
+                <button class="btn btn-danger ms-2" @onclick="Reset">Cancel</button>
+            </div>
+        </div>
+        <hr class="my-4" />
+        <div class="table-responsive">
+            <table class="table table-striped table-bodered">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (listSupervisor.Count() > 0)
+                    {
+                        @foreach (var us in listSupervisor)
+                        {
+                            <tr>
+                                <td>@us.FullName</td>
+                                <td>@us.Username</td>
+                                <td>@us.Role</td>
+                                <td>@us.Status</td>
+                                <td>
+                                    <button class="btn btn-primary" @onclick="@(e => Edit(us.Id))">Edit</button>
+                                    <button class="btn btn-danger" @onclick="@(e => Delete(us.Id))">Delete</button>
+                                    <button class="btn btn-warning text-white" @onclick="@(e => ChangeStatus(us.Id, us.Status))">
+                                        @(us.Status == "active" ? "Deactivate" : "Activate")
+                                    </button>
+
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- Admin Tab -->
+<div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab" tabindex="0">
+    <h4 class="mb-4">Admin Information</h4>
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label for="candidateName">Name:</label>
+            <input id="candidateName" @bind="user.FullName" class="form-control" placeholder="Full Name" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="candidateUsername">Username:</label>
+            <input id="candidateUsername" @bind="user.Username" class="form-control" placeholder="Username" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="candidatePassword">Password:</label>
+            <input id="candidatePassword" @bind="user.PasswordText" type="password" class="form-control" placeholder="Leave blank to keep existing password" />
+        </div>
+    </div>
+    <div class="row">
+        <div class="text-center">
+            <button class="btn btn-info text-white">Search</button>
+            <button class="btn btn-primary ms-2" @onclick="@(() => Save("candidate"))">Save</button>
+            <button class="btn btn-danger ms-2" @onclick="Reset">Cancel</button>
+        </div>
+    </div>
+    <hr class="my-4" />
+    <div class="table-reponsive">
+        <table class="table table-striped table-bodered">
+            <thead>
+                <tr>
+                    <th>Full Name</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (listAdmin.Count() > 0)
+                {
+                    @foreach (var us in listAdmin)
+                    {
+                        <tr>
+                            <td>@us.FullName</td>
+                            <td>@us.Username</td>
+                            <td>@us.Role</td>
+                            <td>@us.Status</td>
+                            <td>
+                                <button class="btn btn-primary" @onclick="@(e => Edit(us.Id))">Edit</button>
+                                <button class="btn btn-danger" @onclick="@(e => Delete(us.Id))">Delete</button>
+                                <button class="btn btn-warning text-white" @onclick="@(e => ChangeStatus(us.Id, us.Status))">
+                                    @(us.Status == "active" ? "Deactivate" : "Activate")
+                                </button>
+
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+
+
+
+</div>
+
+<!-- Custom CSS -->
+<style>
+    .nav-tabs .nav-link.active {
+        border-bottom: 3px solid #007bff; /* Change the color to match your theme */
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--<ul class="nav nav-tabs mb-3" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="pills-home-tab" data-bs-toggle="pill" data-bs-target="#pills-home" type="button" role="tab" aria-controls="pills-home" aria-selected="true">Candidate</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pills-profile-tab" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button" role="tab" aria-controls="pills-profile" aria-selected="false">Supervisor</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pills-contact-tab" data-bs-toggle="pill" data-bs-target="#pills-contact" type="button" role="tab" aria-controls="pills-contact" aria-selected="false">Admin</button>
+    </li>
+</ul>
+<div class="tab-content" id="pills-tabContent">-->
+@*Candidate*@
+<!--<div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
+    <h3>Candidate</h3><br />
+    <div class="row">
+        <div class="col-md-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Name: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="user.FullName" style="width:100%" placeholder="Full Name" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Username: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="user.Username" style="width:100%" placeholder="Username" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Password: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="user.PasswordText" type="password" style="width:100%" placeholder="Leave blank to keep existing password" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4"></div>
+                <div class="col-md-8">
+                    <button class="btn btn-primary" @onclick="@(()=> Save("candidate"))">Save</button>
+                    <button class="btn btn-danger" @onclick="Reset" style="float:right;">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <table class="table table-striped table-bodered">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>ExamHistory</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (listCandidate.Count() > 0)
+                    {
+                        @foreach (var us in listCandidate)
+                        {
+                            <tr>
+                                <td>@us.FullName</td>
+                                <td>@us.Username</td>
+                                <td>
+                                    <a data-bs-toggle="modal" data-bs-target="#eHistoryModal" @onclick="() => GetExamHistory(us.Id)" href="javascript:void(0)">See details...</a>
+                                    <div class="modal fade" id="eHistoryModal" tabindex="-1" aria-labelledby="eHistoryModalLabel" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="eHistoryModalLabel">Candidate: @us.FullName - @us.Username</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <table class="table table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th></th>
+                                                                <th>Exam Name</th>
+                                                                <th>Submited Date</th>
+                                                                <th>Score</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var eHis in examHistory)
+                                                            {
+                                                                i++;
+                                                                <tr>
+                                                                    <td>@i</td>
+                                                                    <td>@eHis.ExamName</td>
+                                                                    <td>@eHis.Sessions[0].Candidates[0].FinishDatetime</td>
+                                                                    <td>@eHis.Sessions[0].Candidates[0].TotalScore</td>
+                                                                </tr>
+                                                            }
+
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@us.Status</td>
+                                <td>
+                                    <button class="btn btn-primary" @onclick="@(e => Edit(us.Id))">Edit</button>
+                                    <button class="btn btn-danger" @onclick="@(e => Delete(us.Id))">Delete</button>
+                                    <button class="btn btn-warning text-white" @onclick="@(e => ChangeStatus(us.Id, us.Status))">
+                                        @(us.Status == "active" ? "Deactivate" : "Activate")
+                                    </button>
+
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>-->
+@*Supervisor*@
+<!--<div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab" tabindex="0">
+    <h3>Supervisor</h3><br />
+    <div class="row">
+        <div class="col-md-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Name: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="user.FullName" style="width:100%" placeholder="Full Name" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Username: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="user.Username" style="width:100%" placeholder="Username" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Password: </label>
+                </div>
+                <div class="col-md-8">
+                    <input @bind="user.PasswordText" type="password" style="width:100%" placeholder="Password" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4"></div>
+                <div class="col-md-8">
+                    <button class="btn btn-primary" @onclick="@(()=> Save("supervisor"))">Save</button>
+                    <button class="btn btn-danger" @onclick="Reset" style="float:right;">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <table class="table table-striped table-bodered">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (listSupervisor.Count() > 0)
+                    {
+                        @foreach (var us in listSupervisor)
+                        {
+                            <tr>
+                                <td>@us.FullName</td>
+                                <td>@us.Username</td>
+                                <td>@us.Role</td>
+                                <td>@us.Status</td>
+                                <td>
+                                    <button class="btn btn-primary" @onclick="@(e => Edit(us.Id))">Edit</button>
+                                    <button class="btn btn-danger" @onclick="@(e => Delete(us.Id))">Delete</button>
+                                    <button class="btn btn-warning text-white" @onclick="@(e => ChangeStatus(us.Id, us.Status))">
+                                        @(us.Status == "active" ? "Deactivate" : "Activate")
+                                    </button>
+
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>-->
+@*Admin*@
+<!--<div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab" tabindex="0">
+        <h3>Admin</h3><br />
+        <div class="row">
+            <div class="col-md-4">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label>Name: </label>
+                    </div>
+                    <div class="col-md-8">
+                        <input @bind="user.FullName" style="width:100%" placeholder="Full Name" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label>Username: </label>
+                    </div>
+                    <div class="col-md-8">
+                        <input @bind="user.Username" style="width:100%" placeholder="Username" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label>Password: </label>
+                    </div>
+                    <div class="col-md-8">
+                        <input @bind="user.PasswordText" type="password" style="width:100%" placeholder="Password" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4"></div>
+                    <div class="col-md-8">
+                        <button class="btn btn-primary" @onclick="@(()=> Save("admin"))">Save</button>
+                        <button class="btn btn-danger" @onclick="Reset" style="float:right;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <table class="table table-striped table-bodered">
+                    <thead>
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (listAdmin.Count() > 0)
+                        {
+                            @foreach (var us in listAdmin)
+                            {
+                                <tr>
+                                    <td>@us.FullName</td>
+                                    <td>@us.Username</td>
+                                    <td>@us.Role</td>
+                                    <td>@us.Status</td>
+                                    <td>
+                                        <button class="btn btn-primary" @onclick="@(e => Edit(us.Id))">Edit</button>
+                                        <button class="btn btn-danger" @onclick="@(e => Delete(us.Id))">Delete</button>
+                                        <button class="btn btn-warning text-white" @onclick="@(e => ChangeStatus(us.Id, us.Status))">
+                                            @(us.Status == "active" ? "Deactivate" : "Activate")
+                                        </button>
+
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>-->

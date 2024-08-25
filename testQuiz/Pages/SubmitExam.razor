@@ -1,0 +1,624 @@
+﻿@page "/take/{examId}"
+@attribute [Authorize(Roles = "candidate")]
+@layout LoginLayout
+
+@inject NavigationManager Navigation
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+
+@code {
+    [Parameter]
+    public string examId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+    private AuthenticationState authState;
+
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+
+    private List<Question> questions = new();
+    private Dictionary<ObjectId, string?> selectedAnswers = new();
+
+    public User candidate = new User();
+    public Exam examTaking = new Exam();
+    public int examDuration;
+    private int minutes;
+    private int seconds;
+    private System.Timers.Timer timer;
+
+    private int totalQuestions;
+    private int answeredQuestions => selectedAnswers.Count(x => !string.IsNullOrEmpty(x.Value));
+    private double ProgressPercentage => ((double)answeredQuestions / totalQuestions) * 100;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        authState = await authenticationState;
+        candidate = userService.GetUserByUsername(authState.User.Identity.Name);
+        ObjectId candidateId = userService.GetUserByUsername(authState.User.Identity.Name).Id;
+
+        ObjectId exId = ObjectId.Parse(examId);
+
+        examTaking = examService.GetExamById(exId);
+        questions = await questionService.GetRandomQuestions(examTaking.SubjectId, examTaking.NumberOfQuestions);
+
+        examDuration = examTaking.Duration;
+        totalQuestions = questions.Count;
+
+        minutes = examDuration;
+        seconds = 0;
+
+        timer = new System.Timers.Timer(1000);
+        timer.Elapsed += Timer_Elapsed;
+        timer.Start();
+
+        foreach (var question in questions)
+        {
+            SelectOption(question, ""); // Khởi tạo câu trả lời rỗng cho mỗi câu hỏi
+        }
+    }
+
+    private void SelectOption(Question question, string option)
+    {
+        selectedAnswers[question.Id] = option;
+    }
+
+    private async Task SubmitQuiz()
+    {
+        ObjectId exId = ObjectId.Parse(examId);
+        authState = await authenticationState;
+        ObjectId candidateId = userService.GetUserByUsername(authState.User.Identity.Name).Id;
+
+        await examService.SaveAnswersAsync(exId, candidateId, questions, selectedAnswers);
+        Navigation.NavigateTo($"/{examId}/result/{candidateId}");
+    }
+
+    private async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        seconds--;
+        if (seconds < 0)
+        {
+            seconds = 59;
+            minutes--;
+        }
+        if (minutes == 0 && seconds == 0)
+        {
+            timer.Stop();
+            await SubmitQuiz();
+        }
+        InvokeAsync(() => StateHasChanged());
+    }
+
+    public void Dispose()
+    {
+        timer.Dispose();
+    }
+
+    private HashSet<int> flaggedQuestions = new HashSet<int>();
+
+    private void FlaggedQuestion(int questionId)
+    {
+        if (flaggedQuestions.Contains(questionId))
+        {
+            flaggedQuestions.Remove(questionId);
+        }
+        else
+        {
+            flaggedQuestions.Add(questionId);
+        }
+        StateHasChanged(); // Đảm bảo trang được cập nhật sau khi thay đổi
+    }
+
+    private bool IsQuestionAnswered(int questionIndex)
+    {
+        var questionId = questions[questionIndex].Id;
+        return selectedAnswers.ContainsKey(questionId) && !string.IsNullOrEmpty(selectedAnswers[questionId]);
+    }
+
+
+}
+
+<div class="header">
+    <div class="information">
+        <img src="./images/user.jpg" alt="image">
+        <div class="contestant">
+            <p class="name">@(candidate.FullName)</p>
+            <p class="id">@(candidate.Username)</p>
+        </div>
+    </div>
+    <h1>@examTaking.ExamName</h1>
+    <button class="finish" @onclick="SubmitQuiz">Nộp bài</button>
+</div>
+
+<div class="container">
+    <div class="content-quest">
+        @if (questions != null)
+        {
+            @foreach (var question in questions)
+            {
+                <div id="question-@(questions.IndexOf(question) + 1)" class="question">
+                    <div class="header-question">
+                        <h4>Question @(questions.IndexOf(question) + 1):</h4>
+                        <button @onclick="() => FlaggedQuestion(questions.IndexOf(question) + 1)"
+                                class="@(flaggedQuestions.Contains(questions.IndexOf(question) + 1) ? "button-flag active" : "button-flag")"
+                                id="@(questions.IndexOf(question) + 1)">
+                            <i class="fas fa-flag"></i>
+                        </button>
+                    </div>
+                    <p>@question.QuestionText</p>
+                    <ul class="options">
+                        @foreach (var option in question.ShuffledOptions)
+                        {
+                            <li>
+                                <input type="radio"
+                                       name="@question.Id"
+                                       id="@($"{question.Id}-{option.OptionText}")"
+                                       @onclick="() => SelectOption(question, option.OptionText)">
+                                <label for="@($"{question.Id}-{option.OptionText}")">
+                                    @option.OptionText
+                                </label>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+        else
+        {
+            <p>Loading questions...</p>
+        }
+    </div>
+
+    <div class="sidebar">
+        <div class="timer">
+            <p class="time-title">Time to complete</p>
+            <p class="time-count">
+                @if (minutes < 10)
+                {
+                    if (seconds >= 0 && seconds < 10)
+                    {
+                        <h1>0@(minutes):0@(seconds)</h1>
+                    }
+                    else
+                    {
+                        <h1>0@(minutes):@(seconds)</h1>
+                    }
+                }
+                else
+                {
+                    if (seconds >= 0 && seconds < 10)
+                    {
+                        <h1>@(minutes):0@(seconds)</h1>
+                    }
+                    else
+                    {
+                        <h1>@(minutes):@(seconds)</h1>
+                    }
+                }
+            </p>
+        </div>
+        <div class="progress-quest">
+            <h2>Question</h2>
+            <div class="progress-quest-detail">
+                <p class="ques-progress">@($"{answeredQuestions}/{totalQuestions}")</p>
+                <div class="progress-quest-container">
+                    <div class="progress-quest-bar" style="width:@(ProgressPercentage)%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="questions-nav">
+            @for (int i = 0; i < totalQuestions; i++)
+            {
+                var isAnswered = IsQuestionAnswered(i);
+                var isFlagged = flaggedQuestions.Contains(i + 1);
+                var buttonClass = $"{(isAnswered ? "active" : "")} {(isFlagged ? "flagged" : "")}";
+
+                <button class="@buttonClass" @onclick="() => FlaggedQuestion(i + 1)" href="#question-@(i + 1)">@(i + 1)</button>
+            }
+
+
+        </div>
+
+    </div>
+</div>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f9f9f9;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .header {
+        width: 100%;
+        height: 85px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 0 0 30px 0;
+        background-color: white;
+        padding: 0 0 0 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+        position: sticky;
+        top: 0;
+    }
+
+        .header .information {
+            display: flex;
+            align-items: center;
+            margin: 0 0 0 70px;
+        }
+
+            .header .information img {
+                width: 55px;
+                height: 55px;
+                border: solid 1px #d8d8d8;
+                border-radius: 50%;
+                margin: 0 10px 0 0;
+            }
+
+            .header .information .contestant .name {
+                font-size: 18px;
+                margin: 18px 0 10px 0;
+            }
+
+            .header .information .contestant .id {
+                font-size: 15px;
+                margin-top: 10px;
+            }
+
+    .container {
+        width: 90%;
+        display: flex;
+        gap: 30px
+    }
+
+    .content-quest {
+        width: 70%;
+    }
+
+    .question {
+        border-radius: 10px;
+        padding: 15px 25px 15px 25px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+        margin: 0 0 30px 0;
+        background-color: white;
+    }
+
+    .header-question {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 0 0 0;
+    }
+
+        .header-question button {
+            background-color: #ffffff;
+            border: solid 1px #d8d8d8;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #e4e4e6;
+        }
+
+            .header-question button.active {
+                background-color: #fff8eb;
+                border: solid 1px #fff8eb;
+                color: #f78d06;
+            }
+
+    .options {
+        list-style-type: none;
+        padding: 0;
+    }
+
+        .options li {
+            margin: 10px 0;
+            font-size: 17px;
+        }
+
+    .question p {
+        margin-top: 0;
+        font-size: 17px;
+    }
+
+    .sidebar {
+        width: 30%;
+        height: fit-content;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+        position: sticky;
+        top: 115px
+    }
+
+    .timer {
+        background-color: #f0f0f0;
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .time-title {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .time-count {
+        color: #f78d06;
+        font-size: 28px;
+    }
+
+    .progress-quest {
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+        .progress-quest p {
+            margin: 0;
+            font-size: 18px;
+        }
+
+    .progress-quest-detail {
+        margin: 0 0 0 0;
+        padding: 0 0 0 0;
+        display: flex;
+        align-items: center;
+        font-size: 15px;
+        gap: 10px
+    }
+
+    .progress-quest-container {
+        width: 80%;
+        background-color: #f0f0f0;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 20px auto;
+    }
+
+    .progress-quest-bar {
+        margin: 0;
+        width: 0;
+        height: 6px;
+        background-color: #007bff;
+        text-align: center;
+        line-height: 30px;
+        color: white;
+        transition: width 0.5s ease;
+        border-radius: 5px;
+    }
+
+    .questions-nav {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+    }
+
+        .questions-nav button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #e0e0e0;
+        }
+
+            .questions-nav button.active {
+                background-color: #007bff;
+                color: white;
+            }
+
+            .questions-nav button.flagged {
+                background-color: #ffc107;
+                color: white;
+            }
+
+            .questions-nav button.active.flagged {
+                background-color: #ffc107;
+                color: white;
+            }
+
+    button.finish {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 25px;
+        cursor: pointer;
+        width: 120px;
+        height: 45px;
+        font-size: 16px;
+        margin: 0 90px 0 0;
+    }
+</style>
+
+
+
+
+@*@code {
+        [Parameter]
+        public string examId { get; set; }
+
+        [CascadingParameter]
+        private Task<AuthenticationState> authenticationState { get; set; }
+        private AuthenticationState authState;
+
+        [Inject] private IJSRuntime JSRuntime { get; set; }
+        private List<Question> questions = new();
+        private Dictionary<ObjectId, string?> selectedAnswers = new();
+
+        public User candidate = new User();
+        public List<ObjectId> examIds = new List<ObjectId>();
+        public Exam examTaking = new Exam();
+        public int examDuration;
+
+        private int minutes;
+        private int seconds;
+        private System.Timers.Timer timer;
+
+
+        private int answeredQuestions = 11;
+        private int totalQuestions = 21;
+        private double ProgressPercentage => (double)answeredQuestions / totalQuestions * 100;
+
+
+        protected override async Task OnInitializedAsync()
+        {
+            authState = await authenticationState;
+            ObjectId candidateId = userService.GetUserByUsername(authState.User.Identity.Name).Id;
+
+            ObjectId exId = ObjectId.Parse(examId);
+
+            examTaking = examService.GetExamById(exId);
+            questions = await questionService.GetRandomQuestions(examTaking.SubjectId, examTaking.NumberOfQuestions);
+
+            examDuration = examTaking.Duration; // Thời gian làm bài
+                                                //await JSRuntime.InvokeVoidAsync("startTimer", examDuration, DotNetObjectReference.Create(this));
+            minutes = examDuration;
+            seconds = 0;
+            timer = new System.Timers.Timer(1000); // Update every 1 second
+            timer.Elapsed += Timer_Elapsed;
+            timer.Start();
+
+            // In danh sách câu hỏi để kiểm tra
+            Console.WriteLine($"Số lượng câu hỏi: {questions.Count}");
+            //Console.WriteLine($"Thời gian làm bài: {examDuration} phút");
+            foreach (var question in questions)
+            {
+                Console.WriteLine($"Câu hỏi: {question.QuestionText}");
+                SelectOption(question, "");
+            }
+        }
+
+        private void SelectOption(Question question, string option)
+        {
+            selectedAnswers[question.Id] = option;
+        }
+
+        private async Task SubmitQuiz()
+        {
+            // Lấy candidateId và examId từ URL
+            ObjectId exId = ObjectId.Parse(examId);
+
+            authState = await authenticationState;
+            ObjectId candidateId = userService.GetUserByUsername(authState.User.Identity.Name).Id;
+            string caId = candidateId.ToString();
+
+            Console.WriteLine($"Câu trả lời:");
+            foreach (var ans in selectedAnswers)
+            {
+                Console.WriteLine($"{ans.Key}: {ans.Value}");
+            }
+
+            // Gọi hàm lưu kết quả
+            await examService.SaveAnswersAsync(exId, candidateId, questions, selectedAnswers);
+            Navigation.NavigateTo($"/{examId}/result/{caId}");
+            Console.WriteLine("SubmitQuiz được gọi");
+        }
+
+        private async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            seconds--;
+            if (seconds < 0)
+            {
+                seconds = 59;
+                minutes--;
+            }
+            if (minutes == 0 && seconds == 0)
+            {
+                timer.Stop();
+                await SubmitQuiz();
+            }
+            InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+        }
+
+        public void Dispose()
+        {
+            timer.Dispose();
+        }
+
+    }*@
+
+@*<h1>Take Exam</h1>
+
+    <div class="container mt-5">
+        <h3 class="text-center mb-4">Quiz</h3>
+
+        @if (questions != null)
+        {
+            <div class="countdown-timer">
+                @if (minutes < 10)
+                {
+                    if (seconds >= 0 && seconds < 10)
+                    {
+                        <h1>0@(minutes):0@(seconds)</h1>
+                    }
+                    else
+                    {
+                        <h1>0@(minutes):@(seconds)</h1>
+                    }
+                }
+                else
+                {
+                    if (seconds >= 0 && seconds < 10)
+                    {
+                        <h1>@(minutes):0@(seconds)</h1>
+                    }
+                    else
+                    {
+                        <h1>@(minutes):@(seconds)</h1>
+                    }
+                }
+            </div>
+
+            @foreach (var question in questions)
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">@question.QuestionText</h5>
+                        @foreach (var option in question.ShuffledOptions)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       id="@($"{question.Id}-{option.OptionText}")"
+                                       name="@question.Id"
+                                       @onclick="() => SelectOption(question, option.OptionText)" />
+                                <label class="form-check-label" for="@($"{question.Id}-{option.OptionText}")">
+                                    @option.OptionText
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            <div class="text-center">
+                <button class="btn btn-primary" @onclick="SubmitQuiz">Nộp bài</button>
+            </div>
+        }
+        else
+        {
+            <p class="text-center">Loading questions...</p>
+        }
+    </div>*@
+
+
+

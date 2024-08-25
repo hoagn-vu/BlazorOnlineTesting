@@ -1,0 +1,19 @@
+﻿@page "/fullscreen"
+@attribute [Authorize(Roles = "candidate,admin")]
+@layout LoginLayout
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<h3>Trang 1</h3>
+<button class="btn btn-primary" @onclick="GoFullScreenAndNavigate">Chuyển sang chế độ toàn màn hình và sang trang thứ 2</button>
+
+@code {
+    private async Task GoFullScreenAndNavigate()
+    {
+        // Gọi JavaScript để chuyển sang chế độ toàn màn hình
+        await JSRuntime.InvokeVoidAsync("openFullscreen");
+
+        // Điều hướng sang trang thứ 2
+        Navigation.NavigateTo("/page2");
+    }
+}

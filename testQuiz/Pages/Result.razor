@@ -1,0 +1,108 @@
+﻿@page "/{examId}/result/{candidateId}"
+@attribute [Authorize(Roles = "candidate")]
+@layout CandidateLayout
+
+@inject NavigationManager Navigation
+@using System.Text.Json
+@using testQuiz.Services
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+
+<PageTitle>Result</PageTitle>
+
+<h3 class="text-center mt-5">Kết quả thi</h3>
+
+@if (examResult != null)
+{
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Kỳ thi: @examName</h4>
+                <p class="card-text"><strong>Môn thi:</strong> @subjName</p>
+                <p class="card-text">
+                    <strong>Thí sinh:</strong>
+                    @userName - @userId
+                </p>
+                <p class="card-text"><strong>Thời gian hoàn thành:</strong> @finishTime</p>
+                <p class="card-text"><strong>Điểm thi:</strong> @totalScore</p>
+                <p class="card-text"><strong>Số câu đúng:</strong> @correctAnsCount / @numQuest</p>
+                <div class="text-center">
+                    <a class="btn btn-primary" href="@($"/takeexam")">Về trang chủ</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <p class="text-center mt-5">Đang tải kết quả...</p>
+}
+
+@code {
+    [Parameter]
+    public string examId { get; set; }
+    [Parameter]
+    public string candidateId { get; set; }
+
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    //private ExamResult examResult;
+    private Exam examResult = new Exam();
+    public string examName;
+    public string subjName;
+    public string userName;
+    public string userId;
+    public string? finishTime;
+    public double? totalScore;
+    public int correctAnsCount;
+    public int numQuest;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        //examResult = await examService.GetResultByCandidateAsync(ObjectId.Parse(examId), ObjectId.Parse(candidateId));
+
+        //examName = examResult.ExamName;
+        //subjName = subjectService.GetSubject(examResult.SubjectId).SubjectName;
+        //userName = userService.GetUserById(examResult.Sessions[0].Candidates[0].CandidateId).FullName;
+        //userId = userService.GetUserById(examResult.Sessions[0].Candidates[0].CandidateId).Username;
+        //finishTime = examResult.Sessions[0].Candidates[0].FinishDatetime?.ToString("yyyy-MM-dd HH:mm:ss");
+        //totalScore = examResult.Sessions[0].Candidates[0].TotalScore;
+        //correctAnsCount = examResult.Sessions[0].Candidates[0].Answers.Count(a => a.IsCorrect);
+        //numQuest = examResult.NumberOfQuestions;
+
+        //Console.WriteLine(examResult.ExamName);
+        //Console.WriteLine(subjectService.GetSubject(examResult.SubjectId).SubjectName);
+        //Console.WriteLine(userService.GetUserById(examResult.Sessions[0].Candidates[0].CandidateId).FullName);
+        //Console.WriteLine(examResult.Sessions[0].Candidates[0].FinishDatetime?.ToString("yyyy-MM-dd HH:mm:ss"));
+        //Console.WriteLine(examResult.Sessions[0].Candidates[0].TotalScore);
+        //Console.WriteLine(examResult.Sessions[0].Candidates[0].Answers.Count(a => a.IsCorrect));
+        //Console.WriteLine(examResult.NumberOfQuestions);
+
+
+
+        // Lấy dữ liệu kỳ thi và thí sinh
+        examResult = await examService.GetResultByCandidateAsync(ObjectId.Parse(examId), ObjectId.Parse(candidateId));
+
+        // Lấy các giá trị cần hiển thị
+        examName = examResult.ExamName;
+        var subject = await subjectService.GetSubjectAsync(examResult.SubjectId); // Async
+        subjName = subject.SubjectName;
+
+        var user = await userService.GetUserByIdAsync(examResult.Sessions[0].Candidates[0].CandidateId); // Async
+        userName = user.FullName;
+        userId = user.Username;
+
+        finishTime = examResult.Sessions[0].Candidates[0].FinishDatetime?.ToString("yyyy-MM-dd HH:mm:ss");
+        totalScore = examResult.Sessions[0].Candidates[0].TotalScore;
+        correctAnsCount = examResult.Sessions[0].Candidates[0].Answers.Count(a => a.IsCorrect);
+        numQuest = examResult.NumberOfQuestions;
+
+        // Gọi StateHasChanged để báo Blazor cập nhật lại giao diện
+        StateHasChanged();
+    }
+}

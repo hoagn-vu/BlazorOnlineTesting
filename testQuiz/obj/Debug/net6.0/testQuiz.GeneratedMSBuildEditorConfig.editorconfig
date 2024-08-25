@@ -1,0 +1,137 @@
+is_global = true
+build_property.TargetFramework = net6.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = testQuiz
+build_property.RootNamespace = testQuiz
+build_property.ProjectDir = /Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/
+build_property.RazorLangVersion = 6.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = /Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz
+build_property._RazorSourceGeneratorDebug = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/App.razor]
+build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/CreateExam.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvQ3JlYXRlRXhhbS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/ExamHistoryForCandidate.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvRXhhbUhpc3RvcnlGb3JDYW5kaWRhdGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/ExamManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvRXhhbU1hbmFnZW1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/ExamSession.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvRXhhbVNlc3Npb24ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/Index.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvSW5kZXgucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/ListQuestion.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvTGlzdFF1ZXN0aW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvTG9naW4ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/Quiz.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvUXVpei5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/Result.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvUmVzdWx0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/RoomManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvUm9vbU1hbmFnZW1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/SubjectQuestion.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvU3ViamVjdFF1ZXN0aW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/SubmitExam.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvU3VibWl0RXhhbS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/TakeExam.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvVGFrZUV4YW0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/TestSession.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvVGVzdFNlc3Npb24ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/TestTracking.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvVGVzdFRyYWNraW5nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/TestTracking2.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvVGVzdFRyYWNraW5nMi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/UserManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvVXNlck1hbmFnZW1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/RedirectToLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = UmVkaXJlY3RUb0xvZ2luLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/SurveyPrompt.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL1N1cnZleVByb21wdC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = X0ltcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/CandidateLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL0NhbmRpZGF0ZUxheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-nh6zohma7e
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/LoadingLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL0xvYWRpbmdMYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-3m9bv9pjjq
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/LoginLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL0xvZ2luTGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-fqfqprpez2
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL01haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-9bilaxmm3q
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL05hdk1lbnUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-pf0huemj7k
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Shared/NotFoundLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkL05vdEZvdW5kTGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-jlrbwzwb4e
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/Error.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvRXJyb3IuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/_Host.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvX0hvc3QuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/hoangvu/Documents/CMC-U_L/CSharp_Projects/testQuiz/Pages/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvX0xheW91dC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 

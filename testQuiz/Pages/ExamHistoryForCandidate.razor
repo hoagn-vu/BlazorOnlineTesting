@@ -1,0 +1,147 @@
+﻿@page "/history"
+@attribute [Authorize(Roles = "candidate")]
+@layout CandidateLayout
+
+@inject NavigationManager Navigation
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+
+@code {
+    //public string candidateId = "66c01b9cfb046bfcbbb0017f";
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+    private AuthenticationState authState;
+    private User candidate = new User();
+    int i = 0;
+    public List<Exam> eHistory = new List<Exam>();
+    protected override async Task OnInitializedAsync()
+    {
+        authState = await authenticationState;
+        candidate = userService.GetUserByUsername(authState.User.Identity.Name);
+        ObjectId candidateId = userService.GetUserByUsername(authState.User.Identity.Name).Id;
+
+        eHistory = await examService.GetExamHistory(candidateId);
+
+    }
+
+    private async Task Start(ObjectId eId, ObjectId cId)
+    {
+        await examService.StartExamAsync(eId, cId);
+    }
+
+}
+
+<a href="@($"/takeexam")"><i class="fas fa-chevron-left"></i> Về trang chủ</a>
+<div class="container mt-4">
+    <!-- Title -->
+    <h1 class="text-center mb-4">Lịch sử thi</h1>
+
+    <!-- Exam History Table -->
+    <div class="row justify-content-center">
+        <div class="col-md-11">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <table class="table table-striped table-hover text-center">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>#</th>
+                                <th>Thí sinh</th>
+                                <th>Kỳ thi</th>
+                                <th>Môn thi</th>
+                                <th>Điểm số</th>
+                                <th>Ngày thực hiện</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var eHis in eHistory)
+                            {
+                                i++;
+                                <tr>
+                                    <td>@i</td>
+                                    <td>@candidate.FullName</td>
+                                    <td>@eHis.ExamName</td>
+                                    <td>@subjectService.GetNameSubject(eHis.SubjectId)</td>
+                                    <td>@eHis.Sessions[0].Candidates[0].TotalScore</td>
+                                    <td>@eHis.Sessions[0].Candidates[0].FinishDatetime?.ToString("MM/dd/yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+@*<h1 class="mb-4">Exam History</h1>
+
+    <div class="col-md-8 d-flex justify-content-center">
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Exam Name</th>
+                    <th>Submitted Date</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var eHis in eHistory)
+                {
+                    i++;
+                    <tr>
+                        <td>@i</td>
+                        <td>@eHis.ExamName</td>
+                        <td>@eHis.Sessions[0].Candidates[0].FinishDatetime</td>
+                        <td>@eHis.Sessions[0].Candidates[0].TotalScore</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>*@
+
+
+
+
+@*<h1>Exam History</h1>
+
+    <div class="col-md-8">
+        <table class="table table-striped table-bodered">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Exam Name</th>
+                    <th>Submited Date</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var eHis in eHistory)
+                {
+                    i++;
+                    <tr>
+                        <td>@i</td>
+                        <td>@eHis.ExamName</td>
+                        <td>@eHis.Sessions[0].Candidates[0].FinishDatetime</td>
+                        <td>@eHis.Sessions[0].Candidates[0].TotalScore</td>
+                    </tr>
+                }
+
+            </tbody>
+        </table>
+    </div>*@

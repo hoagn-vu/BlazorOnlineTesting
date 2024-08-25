@@ -1,0 +1,1089 @@
+﻿@page "/test/session"
+@attribute [Authorize(Roles = "admin")]
+@layout MainLayout
+
+@inject NavigationManager Navigation
+@using testQuiz.Models
+@using MongoDB.Bson;
+@inject testQuiz.Services.ExamService examService
+@inject testQuiz.Services.QuestionService questionService
+@inject testQuiz.Services.RoomService roomService
+@inject testQuiz.Services.SubjectService subjectService
+@inject testQuiz.Services.UserService userService
+
+@code {
+    [Parameter]
+    public string examId { get; set; }
+    public string examName { get; set; }
+
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    private Exam exam = new Exam();
+    private Room room = new Room();
+    private Session session = new Session();
+
+    private List<Exam> listExams = new List<Exam>();
+    private List<Room> listRooms = new List<Room>();
+    private List<User> supervisors = new List<User>(); // Supervisor list for modal
+    private List<User> selectedSupervisors = new List<User>(); // Selected supervisors
+    private List<User> candidates = new List<User>(); // Candidate list for modal
+    private List<User> selectedCandidates = new List<User>(); // Selected candidates
+    private List<Session> listSessions = new List<Session>();
+
+    private List<Exam> Exams = new List<Exam>();
+    private List<ObjectId> supervisorIdPerSessRoomtime = new List<ObjectId>();
+
+    private List<ObjectId> selectedSupervisorsForModal = new List<ObjectId>();
+    private List<CandidateTakeExam> selectedCandidatesForModal = new List<CandidateTakeExam>();
+
+    int i = 0;
+    double? score;
+    private List<Exam> examHistory = new List<Exam>();
+    private Exam examResult = new Exam();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ObjectId objId = ObjectId.Parse(examId);
+        examName = examService.GetExamName(objId);
+        listRooms = roomService.GetAllRooms(); // Load rooms
+        if (listRooms.Any())
+        {
+            // Set default value to the first item in the list
+            session.RoomIdString = listRooms.First().Id.ToString();
+        }
+
+        supervisors = userService.GetUsersByRole("supervisor"); // Load supervisors
+        candidates = userService.GetUsersByRole("candidate"); // Load candidates
+
+        listSessions = examService.GetExamSessions(objId);
+        //supervisorIdPerSessRoomtime = examService.GetSupervisorIdPerSessionRoomTime(objId, );
+
+        session.ActivationDatetime = DateTime.Now;
+
+        Console.WriteLine($"Number of sessions loaded: {listSessions.Count}");
+
+    }
+
+    private void Save()
+    {
+        // Validate inputs
+        if (string.IsNullOrEmpty(session.RoomIdString))
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to provide at least 2 options");
+            return;
+        }
+
+        if (session.ActivationDatetime == default)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to provide at least 2 options");
+            return;
+        }
+
+        if (selectedSupervisors.Count == 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to provide at least 2 options");
+            return;
+        }
+
+        if (selectedCandidates.Count == 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to provide at least 2 options");
+            return;
+        }
+
+        // Cập nhật thông tin session
+        session.SupervisorId = selectedSupervisors.Select(s => s.Id).ToList();
+        session.Candidates = selectedCandidates.Select(c => new CandidateTakeExam { CandidateId = c.Id }).ToList();
+
+        // Gọi hàm mới trong ExamService để thêm session vào Exam hiện tại
+        ObjectId objId = ObjectId.Parse(examId);
+        examService.AddSessionToExam(objId, session);
+
+        // Reset form
+        Reset();
+        listSessions = examService.GetExamSessions(objId);
+    }
+
+    private void Reset()
+    {
+        session = new Session(); // Reset session sau khi lưu
+        selectedSupervisors.Clear(); // Xóa danh sách supervisor được chọn
+        selectedCandidates.Clear(); // Xóa danh sách candidate được chọn
+    }
+
+
+    private void ToggleSupervisorSelection(User supervisor)
+    {
+        if (selectedSupervisors.Contains(supervisor))
+        {
+            selectedSupervisors.Remove(supervisor);
+        }
+        else
+        {
+            selectedSupervisors.Add(supervisor);
+        }
+    }
+
+    private void ToggleCandidateSelection(User candidate)
+    {
+        if (selectedCandidates.Contains(candidate))
+        {
+            selectedCandidates.Remove(candidate);
+        }
+        else
+        {
+            selectedCandidates.Add(candidate);
+        }
+    }
+
+    private void EditSession(Session session)
+    {
+        // Logic để chỉnh sửa session, ví dụ mở modal để chỉnh sửa
+        Console.WriteLine($"Editing session with RoomId: {session.RoomId}");
+    }
+
+
+    private void DeleteSession(ObjectId eId, ObjectId roomId, DateTime actDatetime)
+    {
+        examService.DeleteSession(eId, roomId, actDatetime);
+        ObjectId objId = ObjectId.Parse(examId);
+        listSessions = examService.GetExamSessions(objId);
+    }
+
+    //private double GetScore(ObjectId cId)
+    //{
+    //    examResult = examService.GetResultByCandidate(ObjectId.Parse(examId), cId);
+    //    score = examResult.Sessions[0].Candidates[0].TotalScore;
+    //    if (!score.HasValue)
+    //    {
+    //        return 0.0;
+    //    }
+    //    return score.Value;
+    //}
+
+    private async Task<double> GetScore(ObjectId cId)
+    {
+        examResult = await examService.GetResultByCandidateAsync(ObjectId.Parse(examId), cId);
+
+        // Kiểm tra xem Candidate có tồn tại và có TotalScore không
+        var candidate = examResult?.Sessions?[0]?.Candidates?[0];
+
+        if (candidate != null && candidate.TotalScore.HasValue)
+        {
+            return candidate.TotalScore.Value;
+        }
+
+        return 0.0; // Trả về 0 nếu không tìm thấy
+    }
+
+}
+
+<a href="@($"/exam")"><i class="fas fa-chevron-left"></i> Back</a>
+<h1>Session of Exam: @examName</h1>
+
+<div class="col-md-12 mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <label>Room: </label>
+        </div>
+        <div class="col-md-8">
+            <select @bind="session.RoomIdString" style="width:100%">
+                @foreach (var rm in listRooms)
+                {
+                    <option value="@rm.Id.ToString()">@rm.RoomName</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <label>Activation Datetime: </label>
+        </div>
+        <div class="col-md-8">
+            <input type="datetime-local" @bind="session.ActivationDatetime" style="width:100%" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <label>Supervisor: </label>
+        </div>
+        <div class="col-md-8">
+            <a data-bs-toggle="modal" data-bs-target="#supervisorModal"><i class="fa fa-plus ms-1 me-2"></i> Add Supervisor</a>
+            <ul>
+                @foreach (var supervisor in selectedSupervisors)
+                {
+                    <li>@supervisor.FullName</li>
+                }
+            </ul>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <label>Candidate: </label>
+        </div>
+        <div class="col-md-8">
+            <a data-bs-toggle="modal" data-bs-target="#candidateModal"><i class="fa fa-plus ms-1 me-2"></i> Add Candidate</a>
+            <ul>
+                @foreach (var candidate in selectedCandidates)
+                {
+                    <li>@candidate.FullName</li>
+                }
+            </ul>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4"></div>
+        <div class="col-md-8">
+            <button class="btn btn-primary" @onclick="Save">Save</button>
+            <button class="btn btn-danger" @onclick="Reset" style="float:right;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supervisor Modal -->
+<div class="modal fade" id="supervisorModal" tabindex="-1" aria-labelledby="supervisorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="supervisorModalLabel">Select Supervisors</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var supervisor in supervisors)
+                        {
+                            <tr>
+                                <td><input type="checkbox" @onclick="() => ToggleSupervisorSelection(supervisor)" /></td>
+                                <td>@supervisor.FullName</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Candidate Modal -->
+<div class="modal fade" id="candidateModal" tabindex="-1" aria-labelledby="candidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="candidateModalLabel">Select Candidates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var candidate in candidates)
+                        {
+                            <tr>
+                                <td><input type="checkbox" @onclick="() => ToggleCandidateSelection(candidate)" /></td>
+                                <td>@candidate.FullName</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@{ int counter = 1; }
+@if (listSessions.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Room</th>
+                <th>Activation Datetime</th>
+                <th>Supervisor</th>
+                <th>Candidates</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var session in listSessions)
+            {
+                counter++;
+                <tr>
+                    <td>@roomService.GetRoom(session.RoomId).RoomName</td>
+                    <td>@session.ActivationDatetime</td>
+                    <td>
+                        @*@foreach (var supervisorId in session.SupervisorId)
+                            {
+                                var supervisorName = userService.GetNameById(supervisorId);
+                                <span>@supervisorName</span><br />
+                            }*@
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalsupv@(counter)">
+                            @session.SupervisorId.Count supervisor(s)
+                        </a>
+                        <!-- supervisorId Modal -->
+                        <div class="modal fade" id="modalsupv@(counter)" tabindex="-1" aria-labelledby="modalsupv@(counter)Label" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalsupv@(counter)Label">Room @roomService.GetRoom(session.RoomId).RoomName</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Supervisor Name</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var supervisorId in session.SupervisorId)
+                                                {
+                                                    <tr>
+                                                        <td>@userService.GetUserById(supervisorId).Username</td>
+                                                        <td>@userService.GetUserById(supervisorId).FullName</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </td>
+                    <td>
+                        @*@foreach (var candidate in session.Candidates)
+                            {
+                                var candidateName = userService.GetNameById(candidate.CandidateId);
+                                <span>@candidateName</span><br />
+                            }*@
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalcand@(counter)">
+                            @session.Candidates.Count candidate(s)
+                        </a>
+                        <!-- candId Modal -->
+                        <div class="modal fade" id="modalcand@(counter)" tabindex="-1" aria-labelledby="modalcand@(counter)Label" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalcand@(counter)Label">Room @roomService.GetRoom(session.RoomId).RoomName</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Name</th>
+                                                    <th>Score</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var candidate in session.Candidates)
+                                                {
+                                                    //score = GetScore(candidate.CandidateId);
+                                                    <tr>
+                                                        <td>@userService.GetUserById(candidate.CandidateId).Username</td>
+                                                        <td>@userService.GetUserById(candidate.CandidateId).FullName</td>
+                                                        <td>@GetScore(candidate.CandidateId)</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <!-- Thêm các nút chỉnh sửa, xóa nếu cần -->
+                        <button class="btn btn-warning" @onclick="() => EditSession(session)">Edit</button>
+                        <button class="btn btn-danger" @onclick="() => DeleteSession(ObjectId.Parse(examId), session.RoomId, session.ActivationDatetime)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No sessions available.</p>
+}
+
+
+
+
+
+@*Supervisor Modal*@
+<!--<div class="modal fade" id="supervisorModal_@session.RoomId" tabindex="-1" aria-labelledby="supervisorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="supervisorModalLabel">Supervisors for Room @session.RoomId</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>-->
+@*@foreach (var supervisorId in session.SupervisorId)
+    {
+        <tr>
+            <td>@userService.GetNameById(supervisorId)</td>
+        </tr>
+    }*@
+<!--</tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>-->
+<!-- Candidate Modal -->
+<!--<div class="modal fade" id="candidateModal_@session.RoomId" tabindex="-1" aria-labelledby="candidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="candidateModalLabel">Candidates for Room @session.RoomId</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var candidate in session.Candidates)
+                        {
+                            <tr>
+                                <td>@userService.GetNameById(candidate.CandidateId)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>-->
+
+
+
+
+
+
+
+
+
+
+@*@code {
+    [Parameter]
+    public string examId { get; set; }
+    public string examName { get; set; }
+
+    [Inject] private IJSRuntime JSRuntime { get; set; }
+    private Exam exam = new Exam();
+    private Room room = new Room();
+    private Session session = new Session();
+
+    private List<Exam> listExams = new List<Exam>();
+    private List<Room> listRooms = new List<Room>();
+    private List<User> supervisors = new List<User>(); // Supervisor list for modal
+    private List<User> listAllSupervisors = new List<User>();
+    private List<User> selectedSupervisors = new List<User>(); // Selected supervisors
+    private List<ObjectId> selectedSupervisorsToEdit = new List<ObjectId>(); // Selected supervisors
+    private List<User> candidates = new List<User>(); // Candidate list for modal
+    private List<User> listAllCandidates = new List<User>();
+    private List<User> selectedCandidates = new List<User>(); // Selected candidates
+    private List<CandidateTakeExam> selectedCandidatesToEdit = new List<CandidateTakeExam>(); // Selected candidates
+    private List<Session> listSessions = new List<Session>();
+
+    private List<Exam> Exams = new List<Exam>();
+    private List<ObjectId> supervisorIdPerSessRoomtime = new List<ObjectId>();
+
+    private List<ObjectId> selectedSupervisorsForModal = new List<ObjectId>();
+    private List<CandidateTakeExam> selectedCandidatesForModal = new List<CandidateTakeExam>();
+
+    bool isEditting = false;
+    int i = 0;
+    double? score;
+    private List<Exam> examHistory = new List<Exam>();
+    private Exam examResult = new Exam();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ObjectId objId = ObjectId.Parse(examId);
+        examName = examService.GetExamName(objId);
+        listRooms = roomService.GetAllRooms(); // Load rooms
+        if (listRooms.Any())
+        {
+            // Set default value to the first item in the list
+            session.RoomIdString = listRooms.First().Id.ToString();
+        }
+
+        listAllSupervisors = userService.GetUsersByRole("supervisor"); // Load supervisors
+        supervisors = listAllSupervisors; //Sua sau
+        listAllCandidates = userService.GetUsersByRole("candidate"); // Load candidates
+        foreach (var cand in listAllCandidates)
+        {
+            if (await examService.CanAddCandidateToSession(cand.Id, objId))
+            {
+                candidates.Add(cand);
+            }
+        }
+        listSessions = examService.GetExamSessions(objId);
+        //supervisorIdPerSessRoomtime = examService.GetSupervisorIdPerSessionRoomTime(objId, );
+
+        session.ActivationDatetime = DateTime.Now;
+
+        Console.WriteLine($"Number of sessions loaded: {listSessions.Count}");
+
+    }
+
+    private void Save()
+    {
+        // Validate inputs
+        if (string.IsNullOrEmpty(session.RoomIdString))
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to choose a room");
+            return;
+        }
+
+        if (session.ActivationDatetime == default)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to set activation time");
+            return;
+        }
+
+        if (selectedSupervisors.Count == 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to set some supervisors");
+            return;
+        }
+
+        if (selectedCandidates.Count == 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "You have to set some candidates");
+            return;
+        }
+
+        // Cập nhật thông tin session
+        session.SupervisorId = selectedSupervisors.Select(s => s.Id).ToList();
+        session.Candidates = selectedCandidates.Select(c => new CandidateTakeExam { CandidateId = c.Id }).ToList();
+
+        // Gọi hàm mới trong ExamService để thêm session vào Exam hiện tại
+        ObjectId objId = ObjectId.Parse(examId);
+        examService.AddSessionToExam(objId, session);
+
+        // Reset form
+        Reset();
+        StateHasChanged();
+        listSessions = examService.GetExamSessions(objId);
+
+        OnInitializedAsync();
+    }
+
+    private void Reset()
+    {
+        isEditting = false;
+        session = new Session(); // Reset session sau khi lưu
+        selectedSupervisors.Clear(); // Xóa danh sách supervisor được chọn
+        selectedCandidates.Clear(); // Xóa danh sách candidate được chọn
+    }
+
+    private void ToggleSupervisorSelection(User supervisor)
+    {
+        if (selectedSupervisors.Contains(supervisor))
+        {
+            selectedSupervisors.Remove(supervisor);
+        }
+        else
+        {
+            selectedSupervisors.Add(supervisor);
+        }
+    }
+
+    private void ToggleCandidateSelection(User candidate)
+    {
+        if (selectedCandidates.Contains(candidate))
+        {
+            selectedCandidates.Remove(candidate);
+        }
+        else
+        {
+            selectedCandidates.Add(candidate);
+        }
+    }
+
+    private void DeleteSession(ObjectId eId, ObjectId roomId, DateTime actDatetime)
+    {
+        examService.DeleteSession(eId, roomId, actDatetime);
+        ObjectId objId = ObjectId.Parse(examId);
+        StateHasChanged();
+        listSessions = examService.GetExamSessions(objId);
+
+        OnInitializedAsync();
+    }
+
+    //private double GetScore(ObjectId cId)
+    //{
+    //    examResult = examService.GetResultByCandidate(ObjectId.Parse(examId), cId);
+    //    score = examResult.Sessions[0].Candidates[0].TotalScore;
+    //    if (!score.HasValue)
+    //    {
+    //        return 0.0;
+    //    }
+    //    return score.Value;
+    //}
+
+    private async Task<string> GetScore(ObjectId cId)
+    {
+        examResult = await examService.GetResultByCandidateAsync(ObjectId.Parse(examId), cId);
+
+        // Kiểm tra xem Candidate có tồn tại và có TotalScore không
+        var candidate = examResult?.Sessions?[0]?.Candidates?[0];
+
+        if (candidate != null && candidate.TotalScore.HasValue)
+        {
+            return Convert.ToString(candidate.TotalScore.Value);
+        }
+
+        return Convert.ToString(0.0); // Trả về 0 nếu không tìm thấy
+    }
+
+    private void EditSession(ObjectId eId, ObjectId rId, DateTime actDatetime)
+    {
+        isEditting = true;
+        session = examService.GetExamSessionByRoomAndTime(eId, rId, actDatetime);
+
+        selectedCandidatesToEdit = session.Candidates;
+        foreach (var selCand in selectedCandidatesToEdit)
+        {
+            selectedCandidates.Add(userService.GetUserById(selCand.CandidateId));
+        }
+
+        selectedSupervisorsToEdit = session.SupervisorId;
+        foreach (var selSupv in selectedSupervisorsToEdit)
+        {
+            selectedSupervisors.Add(userService.GetUserById(selSupv));
+        }
+
+        candidates = userService.GetUsersByRole("candidate");
+        //StateHasChanged();
+        //ObjectId objId = ObjectId.Parse(examId);
+        //listSessions = examService.GetExamSessions(objId);
+    }
+
+    private bool IsCheckedCand(User user)
+    {
+        return isEditting && selectedCandidates.Contains(user);
+    }
+
+    private bool IsCheckedSupv(User user)
+    {
+        return isEditting && selectedSupervisors.Contains(user);
+    }
+}*@
+
+<a href="@($"/exam")"><i class="fas fa-chevron-left"></i> Back</a>
+<h1>Session of Exam: @examName</h1>
+
+<div class="col-md-12 mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <label>Room: </label>
+        </div>
+        <div class="col-md-8">
+            <select @bind="session.RoomIdString" style="width:100%">
+                @foreach (var rm in listRooms)
+                {
+                    <option value="@rm.Id.ToString()">@rm.RoomName</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <label>Activation Datetime: </label>
+        </div>
+        <div class="col-md-8">
+            <input type="datetime-local" @bind="session.ActivationDatetime" style="width:100%" />
+        </div>
+    </div>
+
+
+    @*@if (isEditting)*@
+    {
+        <div class="row">
+            <div class="col-md-4">
+                <label>Supervisor: </label>
+            </div>
+            <div class="col-md-8">
+                <a data-bs-toggle="modal" data-bs-target="#supervisorModal" href="#">@(session.SupervisorId.Count) supervisor(s), Click to add supervisor!</a>
+                <ul>
+                    @foreach (var supervisor in selectedSupervisors)
+                    {
+                        <li>@supervisor.FullName</li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <label>Candidate: </label>
+            </div>
+            <div class="col-md-8">
+                <a data-bs-toggle="modal" data-bs-target="#candidateModal" href="#">@(session.Candidates.Count) candidate(s), Click to add candidate!</a>
+                <ul>
+                    @foreach (var candidate in selectedCandidates)
+                    {
+                        <li>@candidate.FullName</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-4">
+                <label>Supervisor: </label>
+            </div>
+            <div class="col-md-8">
+                <a data-bs-toggle="modal" data-bs-target="#supervisorModal"><i class="fa fa-plus ms-1 me-2"></i> Add Supervisor</a>
+                <ul>
+                    @foreach (var supervisor in selectedSupervisors)
+                    {
+                        <li>@supervisor.FullName</li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <label>Candidate: </label>
+            </div>
+            <div class="col-md-8">
+                <a data-bs-toggle="modal" data-bs-target="#candidateModal"><i class="fa fa-plus ms-1 me-2"></i> Add Candidate</a>
+                <ul>
+                    @foreach (var candidate in selectedCandidates)
+                    {
+                        <li>@candidate.FullName</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-4"></div>
+        <div class="col-md-8">
+            <button class="btn btn-primary" @onclick="Save">Save</button>
+            <button class="btn btn-danger" @onclick="Reset" style="float:right;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supervisor Modal -->
+<div class="modal fade" id="supervisorModal" tabindex="-1" aria-labelledby="supervisorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="supervisorModalLabel">Select Supervisors</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var supervisor in supervisors)
+                        {
+                            <tr>
+                                @*<td><input type="checkbox" checked="@IsCheckedSupv(supervisor)" @onclick="() => ToggleSupervisorSelection(supervisor)" /></td>
+                                <td>@supervisor.FullName</td>*@
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Candidate Modal -->
+<div class="modal fade" id="candidateModal" tabindex="-1" aria-labelledby="candidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="candidateModalLabel">Select Candidates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var candidate in candidates)
+                        {
+                            <tr>
+                                @*<td><input type="checkbox" checked="@IsCheckedCand(candidate)" @onclick="() => ToggleCandidateSelection(candidate)" /></td>
+                                <td>@candidate.FullName</td>*@
+                            </tr>
+                        }
+
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@*@{ int counter = 1; }*@
+@if (listSessions.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Room</th>
+                <th>Activation Datetime</th>
+                <th>Supervisor</th>
+                <th>Candidates</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var session in listSessions)
+            {
+                counter++;
+                <tr>
+                    <td>@roomService.GetRoom(session.RoomId).RoomName</td>
+                    <td>@session.ActivationDatetime</td>
+                    <td>
+                        @*@foreach (var supervisorId in session.SupervisorId)
+                            {
+                                var supervisorName = userService.GetNameById(supervisorId);
+                                <span>@supervisorName</span><br />
+                            }*@
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalsupv@(counter)">
+                            @session.SupervisorId.Count supervisor(s)
+                        </a>
+                        <!-- supervisorId Modal -->
+                        <div class="modal fade" id="modalsupv@(counter)" tabindex="-1" aria-labelledby="modalsupv@(counter)Label" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalsupv@(counter)Label">Room @roomService.GetRoom(session.RoomId).RoomName</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Supervisor Name</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var supervisorId in session.SupervisorId)
+                                                {
+                                                    <tr>
+                                                        <td>@userService.GetUserById(supervisorId).Username</td>
+                                                        <td>@userService.GetUserById(supervisorId).FullName</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </td>
+                    <td>
+                        @*@foreach (var candidate in session.Candidates)
+                            {
+                                var candidateName = userService.GetNameById(candidate.CandidateId);
+                                <span>@candidateName</span><br />
+                            }*@
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalcand@(counter)">
+                            @session.Candidates.Count candidate(s)
+                        </a>
+                        <!-- candId Modal -->
+                        <div class="modal fade" id="modalcand@(counter)" tabindex="-1" aria-labelledby="modalcand@(counter)Label" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalcand@(counter)Label">Room @roomService.GetRoom(session.RoomId).RoomName</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Name</th>
+                                                    <th>Score</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var candidate in session.Candidates)
+                                                {
+                                                    //score = GetScore(candidate.CandidateId);
+                                                    <tr>
+                                                        <td>@userService.GetUserById(candidate.CandidateId).Username</td>
+                                                        <td>@userService.GetUserById(candidate.CandidateId).FullName</td>
+                                                        <td>@GetScore(candidate.CandidateId)</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <!-- Thêm các nút chỉnh sửa, xóa nếu cần -->
+                        <button class="btn btn-warning" @onclick="() => {
+                                                                      //EditSession(ObjectId.Parse(examId), session.RoomId, session.ActivationDatetime);
+                                                                  }">
+                            Edit
+                        </button>
+                        <button class="btn btn-danger" @onclick="() => DeleteSession(ObjectId.Parse(examId), session.RoomId, session.ActivationDatetime)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No sessions available.</p>
+}
+
+
+
+
+
+@*Supervisor Modal*@
+<!--<div class="modal fade" id="supervisorModal_@session.RoomId" tabindex="-1" aria-labelledby="supervisorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="supervisorModalLabel">Supervisors for Room @session.RoomId</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>-->
+@*@foreach (var supervisorId in session.SupervisorId)
+    {
+        <tr>
+            <td>@userService.GetNameById(supervisorId)</td>
+        </tr>
+    }*@
+<!--</tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>-->
+<!-- Candidate Modal -->
+<!--<div class="modal fade" id="candidateModal_@session.RoomId" tabindex="-1" aria-labelledby="candidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="candidateModalLabel">Candidates for Room @session.RoomId</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var candidate in session.Candidates)
+                        {
+                            <tr>
+                                <td>@userService.GetNameById(candidate.CandidateId)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>-->
